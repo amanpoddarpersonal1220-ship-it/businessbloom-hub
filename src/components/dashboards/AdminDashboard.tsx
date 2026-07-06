@@ -487,7 +487,8 @@ function CreditPenalty() {
 }
 
 function Employees() {
-  const { employees, orders, tasksData } = { ...useAll(), tasksData: useQuery({ queryKey: ["a-tasks"], queryFn: async () => (await supabase.from("tasks").select("*")).data ?? [] }) };
+  const { employees, orders } = useAll();
+  const tasksData = useQuery({ queryKey: ["a-tasks"], queryFn: async () => (await supabase.from("tasks").select("*")).data ?? [] });
   return (
     <Card className="p-4">
       <h3 className="mb-3 font-display font-semibold">Employees</h3>
