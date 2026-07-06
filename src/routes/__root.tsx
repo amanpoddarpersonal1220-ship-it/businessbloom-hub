@@ -101,6 +101,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "TradeLedger — B2B Trade & Credit Management" },
+      { name: "description", content: "Role-based B2B trade and credit management platform for orders, invoices, ledgers, credit limits and field operations." },
+      { property: "og:description", content: "Role-based B2B trade and credit management platform for orders, invoices, ledgers, credit limits and field operations." },
+      { name: "twitter:description", content: "Role-based B2B trade and credit management platform for orders, invoices, ledgers, credit limits and field operations." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1f2693f2-6dc7-484c-9e82-5c9d040e1215/id-preview-afdf49ef--c6851422-b8fe-4e2f-a699-90c997c15098.lovable.app-1783351275831.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1f2693f2-6dc7-484c-9e82-5c9d040e1215/id-preview-afdf49ef--c6851422-b8fe-4e2f-a699-90c997c15098.lovable.app-1783351275831.png" },
     ],
     links: [
       {
