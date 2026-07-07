@@ -95,7 +95,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="relative grid min-h-screen lg:grid-cols-2">
       {/* Theme & language controls */}
       <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <Button
