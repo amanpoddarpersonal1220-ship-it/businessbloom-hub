@@ -192,6 +192,7 @@ function LanguageToggle() {
 
 function NotificationBell() {
   const { items, unread, markAllRead } = useNotifications();
+  const { t } = useLanguage();
   return (
     <Popover onOpenChange={(o) => o && markAllRead()}>
       <PopoverTrigger asChild>
@@ -206,13 +207,13 @@ function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-          <span className="text-sm font-semibold">Notifications</span>
-          <StatusBadge tone="success">WhatsApp + in-app</StatusBadge>
+          <span className="text-sm font-semibold">{t("Notifications")}</span>
+          <StatusBadge tone="success">{t("WhatsApp + in-app")}</StatusBadge>
         </div>
         <ScrollArea className="max-h-80">
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No notifications
+              {t("No notifications")}
             </div>
           ) : (
             <ul className="divide-y divide-border">
