@@ -6,11 +6,16 @@ import {
   ShieldCheck,
   Briefcase,
   Building2,
+  Moon,
+  Sun,
+  Languages,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useTheme } from "@/hooks/useTheme";
+import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -47,6 +52,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { profile, role, signOut } = useAuth();
+  const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const meta = role ? roleMeta[role] : null;
   const RoleIcon = meta?.icon ?? Building2;
@@ -74,7 +80,7 @@ export function AppShell({
 
         <div className="flex items-center gap-2 px-5 py-3 text-xs text-sidebar-foreground/80">
           <RoleIcon className="h-3.5 w-3.5" />
-          {meta?.label}
+          {meta ? t(meta.label) : null}
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-2">
@@ -96,7 +102,7 @@ export function AppShell({
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {t(item.label)}
               </button>
             );
           })}
@@ -113,7 +119,7 @@ export function AppShell({
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
             onClick={() => signOut()}
           >
-            <LogOut className="mr-2 h-4 w-4" /> Sign out
+            <LogOut className="mr-2 h-4 w-4" /> {t("Sign out")}
           </Button>
         </div>
       </aside>
@@ -136,9 +142,11 @@ export function AppShell({
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-display text-lg font-semibold text-foreground">{activeLabel}</h1>
+          <h1 className="font-display text-lg font-semibold text-foreground">{t(activeLabel)}</h1>
           <div className="ml-auto flex items-center gap-2">
             {headerExtra}
+            <LanguageToggle />
+            <ThemeToggle />
             <NotificationBell />
           </div>
         </header>
@@ -149,8 +157,42 @@ export function AppShell({
   );
 }
 
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={toggleTheme}
+      aria-label={theme === "dark" ? t("Light mode") : t("Dark mode")}
+      title={theme === "dark" ? t("Light mode") : t("Dark mode")}
+    >
+      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </Button>
+  );
+}
+
+function LanguageToggle() {
+  const { lang, toggleLang } = useLanguage();
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={toggleLang}
+      className="gap-1.5"
+      aria-label="Change language"
+      title="Change language"
+    >
+      <Languages className="h-4 w-4" />
+      {lang === "en" ? "EN" : "हि"}
+    </Button>
+  );
+}
+
 function NotificationBell() {
   const { items, unread, markAllRead } = useNotifications();
+  const { t } = useLanguage();
   return (
     <Popover onOpenChange={(o) => o && markAllRead()}>
       <PopoverTrigger asChild>
@@ -165,13 +207,13 @@ function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-          <span className="text-sm font-semibold">Notifications</span>
-          <StatusBadge tone="success">WhatsApp + in-app</StatusBadge>
+          <span className="text-sm font-semibold">{t("Notifications")}</span>
+          <StatusBadge tone="success">{t("WhatsApp + in-app")}</StatusBadge>
         </div>
         <ScrollArea className="max-h-80">
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No notifications
+              {t("No notifications")}
             </div>
           ) : (
             <ul className="divide-y divide-border">
