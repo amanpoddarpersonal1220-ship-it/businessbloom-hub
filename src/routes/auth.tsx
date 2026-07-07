@@ -7,11 +7,16 @@ import {
   Loader2,
   ArrowLeft,
   Smartphone,
+  Moon,
+  Sun,
+  Languages,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
+import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -64,6 +69,8 @@ const PASSWORD = "demo1234";
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { lang, toggleLang, t } = useLanguage();
   const [selected, setSelected] = useState<(typeof roles)[number] | null>(null);
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +96,27 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
+      {/* Theme & language controls */}
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleLang}
+          className="gap-1.5"
+          aria-label="Change language"
+        >
+          <Languages className="h-4 w-4" />
+          {lang === "en" ? "EN" : "हि"}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? t("Light mode") : t("Dark mode")}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </div>
       {/* Brand panel */}
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-2">
@@ -102,7 +130,7 @@ function AuthPage() {
         </div>
         <div className="space-y-4">
           <h2 className="font-display text-3xl font-semibold leading-tight text-white">
-            One platform for orders, credit & collections.
+            {t("One platform for orders, credit & collections.")}
           </h2>
           <p className="max-w-md text-sm text-sidebar-foreground/80">
             Manage purchase & sales orders, credit terms, penalties, ledgers and field
@@ -115,7 +143,7 @@ function AuthPage() {
           </ul>
         </div>
         <div className="text-xs text-sidebar-foreground/60">
-          Demo build · sample data · no real integrations
+          {t("Demo build · sample data · no real integrations")}
         </div>
       </div>
 
@@ -126,10 +154,10 @@ function AuthPage() {
             <>
               <div className="mb-6 text-center lg:text-left">
                 <h1 className="font-display text-2xl font-semibold text-foreground">
-                  Choose a demo role
+                  {t("Choose a demo role")}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  One-click sign in — no credentials needed for the demo.
+                  {t("One-click sign in — no credentials needed for the demo.")}
                 </p>
               </div>
               <div className="space-y-3">
@@ -150,7 +178,7 @@ function AuthPage() {
                       </div>
                       <div className="min-w-0">
                         <div className="font-display font-semibold text-foreground">
-                          Log in as {r.label}
+                          {t("Log in as")} {t(r.label)}
                         </div>
                         <div className="text-xs text-muted-foreground">{r.desc}</div>
                       </div>
@@ -165,14 +193,14 @@ function AuthPage() {
                 onClick={() => setSelected(null)}
                 className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> {t("Back")}
               </button>
               <div className="mb-6">
                 <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Smartphone className="h-5 w-5" />
                 </div>
                 <h1 className="font-display text-2xl font-semibold text-foreground">
-                  Verify OTP
+                  {t("Verify OTP")}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   We sent a 4-digit code via <span className="font-medium">WhatsApp + SMS</span> to{" "}
@@ -199,13 +227,13 @@ function AuthPage() {
                 onClick={() => completeLogin(selected)}
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Verify & continue
+                {t("Verify & continue")}
               </Button>
               <button
                 onClick={() => setOtp("1234")}
                 className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground"
               >
-                Autofill demo code
+                {t("Autofill demo code")}
               </button>
             </div>
           )}
