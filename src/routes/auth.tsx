@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/input-otp";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: AuthPage,
 });
 
@@ -68,6 +71,7 @@ const PASSWORD = "demo1234";
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const { session, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLanguage();
@@ -75,9 +79,22 @@ function AuthPage() {
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Only allow same-origin relative paths as a post-login destination.
+  const safeNext =
+    next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+
+  function goAfterLogin() {
+    if (safeNext) {
+      window.location.href = safeNext;
+    } else {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }
+
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/dashboard", replace: true });
-  }, [loading, session, navigate]);
+    if (!loading && session) goAfterLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, session]);
 
   async function completeLogin(target: (typeof roles)[number]) {
     setSubmitting(true);
@@ -91,7 +108,7 @@ function AuthPage() {
       return;
     }
     toast.success(`Signed in as ${target.label}`);
-    navigate({ to: "/dashboard", replace: true });
+    goAfterLogin();
   }
 
   return (
