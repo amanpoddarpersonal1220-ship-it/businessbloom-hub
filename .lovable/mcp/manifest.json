@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "tradeledger-mcp",
+      "version": "0.1.0",
+      "title": "TradeLedger MCP"
+    },
+    "tools": [
+      {
+        "name": "about_platform",
+        "title": "About the platform",
+        "description": "Return an overview of the B2B Trade & Credit Management platform: what it does and who uses it.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      },
+      {
+        "name": "list_features",
+        "title": "List features by role",
+        "description": "List the platform features available to a given role (admin, employee, or client).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "employee",
+                "client"
+              ],
+              "description": "The role whose features to list."
+            }
+          },
+          "required": [
+            "role"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
