@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useRealtimeTables } from "@/lib/realtime/useRealtimeTable";
+import { usePresence } from "@/lib/realtime/usePresence";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge, orderStatusTone } from "@/components/StatusBadge";
@@ -65,6 +67,14 @@ export function EmployeeDashboard() {
   const [active, setActive] = useState("overview");
   const emp = useMyEmployee();
   const qc = useQueryClient();
+
+  useRealtimeTables([
+    { table: "orders", invalidate: [["emp-orders"]] },
+    { table: "tasks", invalidate: [["emp-tasks"]] },
+    { table: "clients", invalidate: [["emp-clients"]] },
+    { table: "employees", invalidate: [["my-employee", emp.data?.profile_id]] },
+  ]);
+  usePresence();
 
   const toggleDuty = useMutation({
     mutationFn: async (on: boolean) => {

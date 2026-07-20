@@ -17,6 +17,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useRealtimeTables } from "@/lib/realtime/useRealtimeTable";
+import { usePresence } from "@/lib/realtime/usePresence";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge, orderStatusTone, invoiceStatusTone, confirmationTone } from "@/components/StatusBadge";
@@ -44,6 +46,14 @@ const nav: NavItem[] = [
 
 export function ClientDashboard() {
   const [active, setActive] = useState("overview");
+  useRealtimeTables([
+    { table: "orders", invalidate: [["client-orders"]] },
+    { table: "invoices", invalidate: [["client-invoices"]] },
+    { table: "ledger_entries", invalidate: [["client-ledger"]] },
+    { table: "credit_purse", invalidate: [["client-purse"]] },
+    { table: "clients", invalidate: [["my-client"]] },
+  ]);
+  usePresence();
   return (
     <AppShell navItems={nav} active={active} onSelect={setActive}>
       {active === "overview" && <Overview />}
