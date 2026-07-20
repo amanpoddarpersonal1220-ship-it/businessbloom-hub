@@ -1,11 +1,15 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   useCallback,
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface AppNotification {
   id: string;
@@ -26,27 +30,76 @@ interface NotificationsValue {
 
 const Ctx = createContext<NotificationsValue | undefined>(undefined);
 
-const seed: AppNotification[] = [
-  {
-    id: "n1",
-    title: "Invoice INV-2001 overdue",
-    body: "Bharat Steel Co — ₹2,40,000 overdue by 5 days.",
-    tone: "destructive",
-    read: false,
-    at: new Date(Date.now() - 3600_000).toISOString(),
-  },
-  {
-    id: "n2",
-    title: "New order awaiting confirmation",
-    body: "ORD-1001 for Acme Traders Pvt Ltd.",
-    tone: "info",
-    read: false,
-    at: new Date(Date.now() - 7200_000).toISOString(),
-  },
-];
+function toneToast(tone: AppNotification["tone"]) {
+  return tone === "success"
+    ? toast.success
+    : tone === "destructive"
+      ? toast.error
+      : tone === "warning"
+        ? toast.warning
+        : toast.info;
+}
+
+function rowToItem(r: any): AppNotification {
+  return {
+    id: r.id,
+    title: r.title,
+    body: r.body ?? undefined,
+    tone: (r.tone ?? "info") as AppNotification["tone"],
+    read: !!r.read,
+    at: r.created_at,
+  };
+}
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<AppNotification[]>(seed);
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [transient, setTransient] = useState<AppNotification[]>([]);
+
+  const q = useQuery({
+    queryKey: ["notifications", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data ?? []).map(rowToItem);
+    },
+  });
+
+  // Realtime: new notifications for this user
+  useEffect(() => {
+    if (!user) return;
+    const chan = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const item = rowToItem(payload.new);
+          qc.setQueryData<AppNotification[]>(["notifications", user.id], (prev) => [
+            item,
+            ...(prev ?? []),
+          ]);
+          const description = item.body ? `WhatsApp + in-app · ${item.body}` : "WhatsApp + in-app";
+          toneToast(item.tone)(item.title, { description });
+        },
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => qc.invalidateQueries({ queryKey: ["notifications", user.id] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(chan);
+    };
+  }, [user, qc]);
+
+  const items = [...transient, ...(q.data ?? [])];
 
   const notify = useCallback<NotificationsValue["notify"]>((n, opts) => {
     const item: AppNotification = {
@@ -55,27 +108,37 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       read: false,
       at: new Date().toISOString(),
     };
-    setItems((prev) => [item, ...prev]);
+    setTransient((prev) => [item, ...prev].slice(0, 20));
     if (!opts?.silent) {
       const description = n.body ? `WhatsApp + in-app · ${n.body}` : "WhatsApp + in-app";
-      const fn =
-        n.tone === "success"
-          ? toast.success
-          : n.tone === "destructive"
-            ? toast.error
-            : n.tone === "warning"
-              ? toast.warning
-              : toast.info;
-      fn(n.title, { description });
+      toneToast(n.tone)(n.title, { description });
     }
   }, []);
+
+  const markAllRead = useCallback(async () => {
+    if (!user) return;
+    setTransient((prev) => prev.map((i) => ({ ...i, read: true })));
+    await (supabase as any)
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
+    qc.invalidateQueries({ queryKey: ["notifications", user.id] });
+  }, [user, qc]);
+
+  const clear = useCallback(async () => {
+    if (!user) return;
+    setTransient([]);
+    await (supabase as any).from("notifications").delete().eq("user_id", user.id);
+    qc.invalidateQueries({ queryKey: ["notifications", user.id] });
+  }, [user, qc]);
 
   const value: NotificationsValue = {
     items,
     unread: items.filter((i) => !i.read).length,
     notify,
-    markAllRead: () => setItems((prev) => prev.map((i) => ({ ...i, read: true }))),
-    clear: () => setItems([]),
+    markAllRead,
+    clear,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
