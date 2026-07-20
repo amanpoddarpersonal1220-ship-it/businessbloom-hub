@@ -155,6 +155,17 @@ function OrdersTable({ orders }: { orders: any[] }) {
       const { error } = await supabase.from("orders").update({ confirmation } as any).eq("id", id);
       if (error) throw error;
     },
+    onMutate: async ({ id, confirmation }) => {
+      await qc.cancelQueries({ queryKey: ["client-orders"] });
+      const prev = qc.getQueryData<any[]>(["client-orders"]);
+      qc.setQueryData<any[]>(["client-orders"], (rows) =>
+        (rows ?? []).map((o) => (o.id === id ? { ...o, confirmation } : o)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["client-orders"], ctx.prev);
+    },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["client-orders"] });
       const map: Record<string, any> = {
@@ -235,6 +246,17 @@ function Invoices() {
     mutationFn: async ({ id, approval }: { id: string; approval: string }) => {
       const { error } = await supabase.from("invoices").update({ approval } as any).eq("id", id);
       if (error) throw error;
+    },
+    onMutate: async ({ id, approval }) => {
+      await qc.cancelQueries({ queryKey: ["client-invoices"] });
+      const prev = qc.getQueryData<any[]>(["client-invoices"]);
+      qc.setQueryData<any[]>(["client-invoices"], (rows) =>
+        (rows ?? []).map((r) => (r.id === id ? { ...r, approval } : r)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["client-invoices"], ctx.prev);
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["client-invoices"] });

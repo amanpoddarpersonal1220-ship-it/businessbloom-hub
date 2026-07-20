@@ -25,6 +25,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDate } from "@/lib/format";
+import { usePresence } from "@/lib/realtime/usePresence";
+import { useRealtimeStatus } from "@/lib/realtime/RealtimeProvider";
+import { Radio } from "lucide-react";
 
 export interface NavItem {
   key: string;
@@ -145,6 +148,7 @@ export function AppShell({
           <h1 className="font-display text-lg font-semibold text-foreground">{t(activeLabel)}</h1>
           <div className="ml-auto flex items-center gap-2">
             {headerExtra}
+            <LiveIndicator />
             <LanguageToggle />
             <ThemeToggle />
             <NotificationBell />
@@ -158,6 +162,9 @@ export function AppShell({
 }
 
 function ThemeToggle() {
+  return _ThemeToggle();
+}
+function _ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   return (
@@ -170,6 +177,23 @@ function ThemeToggle() {
     >
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
+  );
+}
+
+function LiveIndicator() {
+  const { online } = usePresence();
+  const status = useRealtimeStatus();
+  const dotClass =
+    status === "connected" ? "bg-success animate-pulse" : status === "connecting" ? "bg-warning" : "bg-destructive";
+  return (
+    <div
+      className="hidden items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium sm:flex"
+      title={`${online.length} online · ${status}`}
+    >
+      <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+      <Radio className="h-3 w-3 text-muted-foreground" />
+      <span className="tabular-nums">{online.length}</span>
+    </div>
   );
 }
 
