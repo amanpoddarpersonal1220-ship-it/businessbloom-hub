@@ -162,9 +162,6 @@ export function AppShell({
 }
 
 function ThemeToggle() {
-  return _ThemeToggle();
-}
-function _ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   return (
