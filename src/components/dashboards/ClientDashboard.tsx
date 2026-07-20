@@ -17,6 +17,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useRealtimeTables } from "@/lib/realtime/useRealtimeTable";
+import { usePresence } from "@/lib/realtime/usePresence";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge, orderStatusTone, invoiceStatusTone, confirmationTone } from "@/components/StatusBadge";
@@ -44,6 +46,14 @@ const nav: NavItem[] = [
 
 export function ClientDashboard() {
   const [active, setActive] = useState("overview");
+  useRealtimeTables([
+    { table: "orders", invalidate: [["client-orders"]] },
+    { table: "invoices", invalidate: [["client-invoices"]] },
+    { table: "ledger_entries", invalidate: [["client-ledger"]] },
+    { table: "credit_purse", invalidate: [["client-purse"]] },
+    { table: "clients", invalidate: [["my-client"]] },
+  ]);
+  usePresence();
   return (
     <AppShell navItems={nav} active={active} onSelect={setActive}>
       {active === "overview" && <Overview />}
@@ -145,6 +155,17 @@ function OrdersTable({ orders }: { orders: any[] }) {
       const { error } = await supabase.from("orders").update({ confirmation } as any).eq("id", id);
       if (error) throw error;
     },
+    onMutate: async ({ id, confirmation }) => {
+      await qc.cancelQueries({ queryKey: ["client-orders"] });
+      const prev = qc.getQueryData<any[]>(["client-orders"]);
+      qc.setQueryData<any[]>(["client-orders"], (rows) =>
+        (rows ?? []).map((o) => (o.id === id ? { ...o, confirmation } : o)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["client-orders"], ctx.prev);
+    },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["client-orders"] });
       const map: Record<string, any> = {
@@ -225,6 +246,17 @@ function Invoices() {
     mutationFn: async ({ id, approval }: { id: string; approval: string }) => {
       const { error } = await supabase.from("invoices").update({ approval } as any).eq("id", id);
       if (error) throw error;
+    },
+    onMutate: async ({ id, approval }) => {
+      await qc.cancelQueries({ queryKey: ["client-invoices"] });
+      const prev = qc.getQueryData<any[]>(["client-invoices"]);
+      qc.setQueryData<any[]>(["client-invoices"], (rows) =>
+        (rows ?? []).map((r) => (r.id === id ? { ...r, approval } : r)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["client-invoices"], ctx.prev);
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["client-invoices"] });

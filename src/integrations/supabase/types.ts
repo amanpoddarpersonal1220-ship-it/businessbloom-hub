@@ -325,6 +325,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          read: boolean
+          title: string
+          tone: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read?: boolean
+          title: string
+          tone?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read?: boolean
+          title?: string
+          tone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           client_id: string
@@ -406,6 +442,33 @@ export type Database = {
           name?: string
           phone_masked?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      realtime_events_log: {
+        Row: {
+          actor_id: string | null
+          channel: string
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          channel: string
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          channel?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
         }
         Relationships: []
       }

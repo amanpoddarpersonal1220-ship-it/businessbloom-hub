@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useRealtimeTables } from "@/lib/realtime/useRealtimeTable";
+import { usePresence } from "@/lib/realtime/usePresence";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge, orderStatusTone, invoiceStatusTone } from "@/components/StatusBadge";
@@ -71,6 +73,15 @@ function useAudit() {
 
 export function AdminDashboard() {
   const [active, setActive] = useState("overview");
+  useRealtimeTables([
+    { table: "orders", invalidate: [["a-orders"]] },
+    { table: "invoices", invalidate: [["a-invoices"]] },
+    { table: "clients", invalidate: [["a-clients"]] },
+    { table: "employees", invalidate: [["a-employees"]] },
+    { table: "tasks", invalidate: [["a-tasks"]] },
+    { table: "audit_log", invalidate: [["a-audit"]] },
+  ]);
+  usePresence();
   return (
     <AppShell navItems={nav} active={active} onSelect={setActive}>
       {active === "overview" && <Overview />}

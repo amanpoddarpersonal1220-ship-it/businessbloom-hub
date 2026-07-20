@@ -1,64 +1,74 @@
-# B2B Trade & Credit Management Platform — Demo (v0)
 
-A single codebase, role-based demo app. One login flow; the dashboard adapts to the logged-in role (Admin / Employee / Client). All third-party integrations (WhatsApp, SMS, GPS, OCR, telephony, GST verification) are simulated with mock data and toasts, clearly labeled in the UI.
+# Plan — Realtime TradeLedger (production-ready)
 
-## Decisions locked
-- **Login:** One-click "Log in as Admin / Employee / Client" buttons that prefill and submit instantly, plus a visual-only 4-digit OTP step that auto-accepts any input.
-- **Visual style:** Clean fintech (light) — palette `#0F172A` (ink), `#2563EB` (primary blue), `#0EA5E9` (teal accent), `#F1F5F9` (surfaces). Data-dense modern SaaS admin feel.
-- **RLS:** Real per-role Row-Level Security (clients see only their own data; employees see assigned clients; admins see all).
-- **Build order:** Core first, then expand.
+Goal: every relevant screen updates live across Admin, Employee, and Client without a refresh, backed by Supabase Realtime + Postgres, with reconnection handling, optimistic updates, presence, and audit logging of realtime events.
 
-## Tech & backend
-- React + TanStack Start (file-based routing under `src/routes/`), Tailwind v4, shadcn/ui, Recharts for charts.
-- Lovable Cloud (Supabase) for auth, Postgres, storage. Enable Cloud as step 1.
-- All user-scoped reads/writes via `createServerFn` with `requireSupabaseAuth`; RLS enforced.
+## 1. Database migration — enable Realtime + supporting objects
 
-## Design system
-- Fonts via `@fontsource` (Figtree for UI/body, Space Grotesk for headings/numbers).
-- Semantic tokens in `src/styles.css` (`@theme inline`) — no hardcoded colors in components.
-- Status colors: blue=pending/info, green=paid/verified/done, amber=due-soon/needs-approval, red=overdue/declined.
-- Shared app shell: role-aware sidebar nav, top bar with notification bell + notification center, duty toggle (employee).
+One migration doing all of the following:
 
-## Data model (Supabase tables, all with GRANTs + RLS + `has_role` security-definer fn)
-- `app_role` enum (admin/employee/client) + `user_roles` table (roles NOT stored on profiles).
-- `profiles` (id, role mirror for display, name, phone_masked, email).
-- `clients` (gst_number, pan, phone, credit_limit, credit_terms 30/45/60, penalty_rate, verified, assigned_employee_id).
-- `gst_verification` (separate module table: client_id, status, provider placeholder) so a real API plugs in later.
-- `employees` (profile_id, order_limit, duty_status, base_salary + payslip fields).
-- `orders` (client_id, employee_id, type PO/SO, status Pending→Confirmed→Invoiced→Paid, items jsonb, value, needs_admin_approval).
-- `invoices` (order_id, status Sent/Approved/Declined/Overdue, due_date, amount).
-- `ledger_entries` (client_id, type, amount, running_balance).
-- `credit_purse` (client_id, used, remaining).
-- `tasks` (employee_id, title, description, status, due_date).
-- `audit_log` (actor_id, action, target, timestamp).
-- Seed migration: 3 demo auth users (admin/employee/client) with roles, a handful of clients, orders across all pipeline states, ≥1 overdue invoice, ≥1 flagged order, tasks, ledger rows.
+- `ALTER TABLE ... REPLICA IDENTITY FULL` for: `orders`, `invoices`, `ledger_entries`, `credit_purse`, `tasks`, `employees`, `clients`, `audit_log`, `profiles`, `gst_verification`.
+- `ALTER PUBLICATION supabase_realtime ADD TABLE` for the same list.
+- New `public.notifications` table (id, user_id, tone, title, body, entity_type, entity_id, read, created_at) with RLS: user sees only their own rows; service_role full; add to realtime publication. GRANTs per rules.
+- New `public.realtime_events_log` (id, actor_id, channel, event_type, payload jsonb, created_at) — append-only audit of significant realtime events (order accepted, invoice approved, duty toggled, task status change). Insert via triggers.
+- Postgres triggers to auto-insert notification rows on: new order for a client, order status change, invoice status change, new task assigned, task marked done, invoice becoming overdue (via scheduled function).
+- Trigger to insert into `realtime_events_log` on the same events (actor from `auth.uid()`).
+- Recompute triggers on `orders`/`invoices`/`ledger_entries` → refresh `credit_purse` used/remaining so client counters stay consistent live.
 
-## Routing
-- `src/routes/auth.tsx` — role buttons + OTP step (public).
-- `src/routes/_authenticated/route.tsx` — managed gate (ssr:false, redirect to /auth).
-- `_authenticated/dashboard.tsx` — role switch renders Admin / Employee / Client dashboard.
-- Sub-routes per major area (orders, invoices, clients, employees, tasks, reports).
+## 2. Realtime client infrastructure
 
----
+New files under `src/lib/realtime/`:
 
-## Phase 1 — Core (this build)
-1. Enable Lovable Cloud; run schema + RLS + seed migrations.
-2. Auth: one-click role login + visual OTP; role-based routing; role-aware app shell + notification bell.
-3. **Client dashboard:** order confirmation (Accept/Decline/Request Changes), invoice approval, credit timeline with auto due dates, due/overdue banners, ledger/Hisab table, penalty display, KYC read view.
-4. **Employee dashboard:** large-button UI, assigned client list with masked phones + UI-only Call toast, WhatsApp-labeled send buttons (toast), duty On/Off toggle, task list (mark In Progress/Done), order punch form with per-employee limit flagging.
-5. **Admin dashboard:** client CRUD + KYC verified toggle + credit limit/terms/penalty, order management (status pipeline table), invoice management (status tracking), credit purse widget, overdue accounts view.
-6. In-app notifications (toast + notification center) labeled "WhatsApp + in-app".
+- `useRealtimeTable.ts` — generic hook: subscribes to `postgres_changes` for a table + filter, invalidates matching TanStack Query keys, handles unmount cleanup, exponential-backoff reconnection, and offline/online detection via `navigator.onLine` + `supabase.realtime` status events.
+- `usePresence.ts` — joins a per-role channel (`presence:admins`, `presence:employees`, `presence:tenant`) tracking `{ user_id, name, role, route, entity_id? }`; exposes `onlineUsers` and `whoIsViewing(entityType, entityId)`.
+- `useEntityViewers.ts` — thin wrapper over presence that tracks viewers of a specific order/invoice for "Admin is viewing this order" badges.
+- `RealtimeProvider.tsx` — mounts once in `_authenticated/route.tsx`; owns the shared client, presence channel, connection-status banner ("Reconnecting…"), and a global toast on push notifications.
 
-## Phase 2 — Expand (fast-follow)
-- Employee: "Upload/Scan Order Slip" image upload → simulated OCR autofill; static demo map with mock field-visit pins.
-- Admin: employee CRUD + performance summary, payslip generator (printable/PDF), reporting dashboard charts (outstanding dues, sales by client/employee, order volume trends), audit log table.
-- gst_verification module surfaced in admin UI (manual toggle, API-ready).
+## 3. Wire realtime into existing dashboards
+
+Only presentational/data-fetching edits — no business-logic rewrites.
+
+- `AdminDashboard.tsx`: subscribe to `orders`, `invoices`, `tasks`, `employees.duty_status`, `audit_log`. KPIs (outstanding dues, order volume, active employees) recompute from live query cache. Kanban cards animate on status change. Show green presence dot on employee rows. "X is viewing" badge on the order/invoice detail panels.
+- `EmployeeDashboard.tsx`: subscribe to own `tasks`, own `orders`, assigned `clients`. Duty toggle already writes; add live badge reflecting admin-side edits. New-task toast via notifications channel.
+- `ClientDashboard.tsx`: subscribe to own `orders`, `invoices`, `ledger_entries`, `credit_purse`. Accept/Decline buttons use optimistic mutation (TanStack Query `onMutate` + rollback on error) so the UI updates instantly and reconciles on the realtime echo.
+
+## 4. Notification bell — real, not seeded
+
+Replace the in-memory seed in `useNotifications.tsx` with:
+
+- Initial query from `public.notifications` for the current user.
+- Realtime subscription (`INSERT` on `notifications` filtered by `user_id=eq.<me>`) → prepends item + toast.
+- `markAllRead` / per-item read → `UPDATE` on the row.
+- Retains the "WhatsApp + in-app" label copy.
+
+## 5. Presence, viewing indicators, live counters
+
+- Presence dot in `AppShell` header (self) and next to employee/client names in admin tables.
+- Order/Invoice approval screens show a small pill: "Admin Priya is viewing" when another user's presence entry matches this entity.
+- Admin overview counters (`Outstanding`, `Orders today`, `Active employees`) derive from live-updated query caches — no polling.
+
+## 6. Production hardening
+
+- Reconnection: `RealtimeProvider` listens to `SYSTEM` / `CHANNEL_ERROR`, retries with backoff, shows a subtle top banner while disconnected, refetches all active queries on reconnect.
+- Optimistic updates on: order Accept/Decline/Request-Changes, invoice Accept/Decline, task Start/Done, duty toggle. Rollback on error with toast.
+- Audit: every optimistic mutation writes to `audit_log`; triggers additionally write to `realtime_events_log` for a tamper-evident feed.
+- RLS: notifications and realtime_events_log locked to owner/admin; ensure existing per-table RLS already gates realtime payloads (Supabase applies RLS to realtime).
+- Cleanup: all channels removed on unmount; single shared client; no per-render `.subscribe()`.
+
+## 7. Verification
+
+- Two-browser test script (Playwright) logging in as admin + client, punching an order, and asserting the client sees it within 2s; accepting reflects to admin within 2s.
+- Kill the network tab, confirm banner appears, restore, confirm data reconciles.
 
 ## Technical notes
-- `has_role(uid, role)` security-definer function for all role checks in RLS (avoids recursion).
-- Credit purse + ledger running balance recomputed via server functions on order/payment change.
-- Due dates/penalties computed from stored dates + configurable rate fields.
-- Phone masking enforced at UI layer for employees (`+91 98••••••10`), non-copyable.
-- Basic Zod validation on all forms, client + server.
 
-I'll start with Phase 1 after you approve.
+- Stack unchanged: TanStack Start + Supabase Realtime v2 (`supabase.channel(...).on('postgres_changes', ...)` + presence).
+- All subscriptions live inside `useEffect` with cleanup, per realtime rules.
+- No edge functions added; triggers + client subscriptions cover the flow.
+- No schema-breaking changes to existing tables beyond `REPLICA IDENTITY FULL` and publication membership.
+
+## Out of scope
+
+- Real WhatsApp/SMS delivery (still simulated).
+- Real GPS tracking.
+- Mobile push notifications (browser toasts + bell only).
